@@ -1,0 +1,244 @@
+\documentclass[color={usenames,dvipsnames}]{beamer}
+
+\usetheme{CambridgeUS}
+
+\usepackage{etex}
+\reserveinserts{28}
+
+\usepackage{ifthen}
+
+\usepackage[english]{babel}
+\usepackage[usenames,dvipsnames]{color}
+
+\usepackage{siunitx}
+\usepackage{wasysym}
+\usepackage{pgf}
+\usepackage{pgfplots}
+\usepackage{gnuplot-lua-tikz}
+\usepackage{tikz}
+\usepackage{pifont}
+\usepackage[utf8x]{inputenc}
+\usepackage{verbatim}
+\usepackage{graphicx}
+\usepackage{fontenc}
+\usepackage[active]{srcltx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{prettyref}
+\usepackage{epsfig}
+\usepackage{fancyhdr}
+\usepackage{fancybox}
+\usepackage{wasysym}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{psfrag}
+\usepackage{pstricks,pst-grad,pst-node,pst-text,pst-3d} 
+\usepackage{gensymb}
+\usepackage{nicefrac}
+\usepackage{xspace}
+\usepackage[normalem]{ulem}
+\usepackage{placeins}
+\usepackage{bm}
+\usepackage{bbm}
+\usepackage{mathtools}
+
+\definecolor{darkgreen}{rgb}{0,0.7,0}
+
+\newcommand{\good}{\smiley}
+\newcommand{\bad}{\frownie}
+
+\setbeamercovered{dynamic}
+
+\mode<article>
+{
+  \usepackage{fullpage}
+  \usepackage{hyperref}
+}
+
+\newcommand{\mytitle}{Rating players in large, sparse competitions}
+
+\title{\mytitle}
+
+\author[{E}. {F}onn]{Eivind Fonn}
+\institute{SINTEF ICT}
+\date{May 21, 2015}
+
+\input{custom}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\section{Problem description}
+
+\begin{frame}
+  \frametitle{Problem description}
+  
+  A large population of players compete in tournaments over time.
+  \begin{itemize}
+    \item Tournaments are not centrally organized.
+    \item The ``meeting'' matrix is sparse to rank players by conventional
+      means.
+  \end{itemize}
+
+  We need a {\em rating system} that assigns to every player a time-dependent
+  {\em playing strength} depending on the results and strengths of his opponents.
+
+  \begin{itemize}
+    \item Chess (Elo system).
+    \item Various e-sports.
+    \item Tennis (ATP rankings work differently).
+  \end{itemize}
+\end{frame}
+
+\section{Probability model}
+
+\begin{frame}
+  \frametitle{Probability model}
+
+  Bradley-Terry model: For two objects with merit parameters $\lambda_1$ and
+  $\lambda_2$, object $1$ is preferred to object $2$ with probability
+  $\nicefrac{\lambda_1}{(\lambda_1+\lambda_2)}$.
+
+  \vspace{0.3cm}
+
+  Let $\theta_i, \theta_j$ be the strenghts of players $i$ and $j$ at some time,
+  and let
+  \[
+    s =
+    \begin{cases}
+      1, & \text{$i$ won over $j$}, \\
+      -1, & \text{$i$ lost to $j$}. \\
+    \end{cases}
+  \]
+  Then we have the model for game outcomes
+  \[
+    \rmP(s) = \frac{1}{1 + \ee^{s(\theta_j - \theta_i)}} = \Phi_\cL(s\Delta_{ij}),
+  \]
+  where $\lambda = \ee^{\theta}$, and $\Delta_{ij} = \theta_i - \theta_j$ is the
+  difference in playing strengths.
+\end{frame}
+
+\section{Distributions}
+
+\begin{frame}
+  \frametitle{Significance of the distribution}
+  
+  The Bradley-Terry model gives a logistic distribution, but in practice we can
+  choose anything.
+  \[
+    P(s) = \Phi(s\Delta_{ij})
+  \]
+
+  \begin{center}
+    \input{erf}
+  \end{center} 
+
+  If A beats B $65$\% of the time, and B beats C $65$\% of the time, how often
+  does A beat C?  Logistic: $77.5$\%, normal: $78$\%.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Player skill distributions}
+
+  The playing strength of each player (for any given game) is normally
+  distributed, with assumed known mean and variance.
+  \[
+    \theta_i \,|\, \mu_i, \sigma_i^2 \;\sim\; \cN(\mu_i, \sigma_i^2)
+  \]
+  We want to find out how to update $\mu_i$ (the rating) and $\sigma_i^2$ (the
+  variance) as a function of time and played games.
+\end{frame}
+
+\section{Rating updates}
+
+\begin{frame}
+  \frametitle{Rating updates}
+
+  When players don't play, their rating variance increases
+  \[
+    \sigma_i^2(t_0 + t) = \sigma_i^2(t_0) + \nu^2t
+  \]
+  
+  When players \emph{do} play, we use a Bayesian inversion formula to update
+  their ratings.  Essentially,
+  \begin{itemize}
+    \item The performance rating in a given period is the rating at which the
+      likelihood of the actual results is maximized.
+    \item The new rating is a weighted average of the current rating and the
+      performance rating.  The weight depends on the variances.
+    \item The new variance is half the harmonic mean of the variances. It is
+      always smaller than before.
+  \end{itemize}
+  None of the above is ``made up''.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Other considerations}
+
+  \begin{itemize}
+  \item Players start with rating $\theta \sim \cN(0,\sigma^2_{\text{init}})$.
+  \item Do not allow $\sigma^2$ to leave the range
+    $\left(\sigma^2_{\text{min}}, \sigma^2_{\text{max}}\right)$.
+  \end{itemize}
+
+  The model must be fitted with parameters 
+  $\sigma^2_{\text{init}}, \sigma^2_{\text{min}}, \sigma^2_{\text{max}}, \nu^2$,
+  as well as the period length.
+  
+  In SC2, which is a volatile game, we had to use relatively large values. In
+  chess, one might imagine that they would be lower.
+\end{frame}
+
+\section{Predictive power}
+
+\begin{frame}
+  \frametitle{Predictive power}
+
+  \begin{center}
+    \includegraphics[width=9cm]{figs/predict}
+  \end{center}
+\end{frame}
+
+\section{Lessons learned}
+
+\begin{frame}
+  \frametitle{Lessons learned}
+
+  \begin{itemize}
+  \item Proper model fitting is incredibly important. SC2 is a very volatile and fluid game, and it's
+    easy to be fooled.
+  \item Player pool heterogeneity is a problem. Westerners play with Westerners, Koreans with Koreans,
+    etc., but Koreans are generally far stronger.
+    \begin{itemize}
+    \item Put increased weight on cross-pool matches. (Ineffective.)
+    \item Give Koreans bonus starting points. (Crude but effective.)
+    \item Clustering algorithms? (Surprisingly ineffective?)
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\section{Today}
+
+\begin{frame}
+  \frametitle{Today}
+
+  \begin{itemize}
+  \item We have by far the largest and most content-rich SC2 database in the world, and the only one
+    that is publicly downloadable and accessible via API.
+  \item \num{9300} players, \num{313000} games.
+  \item About \num{10000} daily pageviews, enough to hypothetically support hosting costs by a good margin.
+  \item About \num{8} currently active teammembers. More than \num{30} have contributed overall,
+    \num{8} of those with code.
+  \end{itemize}
+\end{frame}
+
+\end{document}

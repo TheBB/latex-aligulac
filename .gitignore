@@ -1,0 +1,12 @@
+*/auto
+*.gnuplot
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.log.table
+*.nav
+*.out
+*.snm
+*.toc
+/auto
